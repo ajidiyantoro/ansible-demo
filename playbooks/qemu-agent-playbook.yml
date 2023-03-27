@@ -1,0 +1,22 @@
+- hosts: all
+  become: true
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install qemu-guest-agent package
+      apt:
+        name: qemu-guest-agent
+        state: present
+
+    - name: Reboot machine
+      reboot:
+
+    - name: Wait for machine to come back online
+      wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 22
+        state: started
+        delay: 10
+        timeout: 300

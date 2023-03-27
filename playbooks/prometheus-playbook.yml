@@ -1,0 +1,117 @@
+- hosts: prometheus
+  become: true
+  vars:
+    packages:
+      download_url: https://github.com/prometheus/prometheus/releases/download/v2.37.6/prometheus-2.37.6.linux-amd64.tar.gz
+      package_name: prometheus-2.37.6.linux-amd64.tar.gz
+    temp_dir: /tmp
+    config_dir: /etc/prometheus
+    data_dir: /var/lib/prometheus
+
+  tasks:
+    - name: Add entries /etc/cloud/templates/hosts.debian.tmpl
+      blockinfile:
+        path: /etc/cloud/templates/hosts.debian.tmpl
+        block: |
+          # The following lines are using for KES Server
+          10.28.30.11 demo-server-1
+          10.28.30.12 demo-server-2
+          10.28.30.13 demo-server-3
+
+    - name: Add entries /etc/hosts
+      blockinfile:
+        path: /etc/hosts
+        block: |
+          # The following lines are using for KES Server
+          10.28.30.11 demo-server-1
+          10.28.30.12 demo-server-2
+          10.28.30.13 demo-server-3
+
+    - name: Download Prometheus v2.37.6
+      get_url:
+        url: "{{ packages.download_url }}"
+        dest: "{{ temp_dir }}/{{ packages.package_name }}"
+
+    - name: Extract Prometheus v2.37.6
+      unarchive:
+        src: "{{ temp_dir }}/{{ packages.package_name }}"
+        dest: "{{ temp_dir }}"
+        remote_src: yes
+
+    - name: Create prometheus group
+      group:
+        name: prometheus
+        state: present
+
+    - name: Create prometheus user
+      user:
+        name: prometheus
+        group: prometheus
+        shell: /sbin/nologin
+        system: yes
+        createhome: no
+
+    - name: Create Config and Data Directory
+      file:
+        path: "{{ config_dir }}"
+        state: directory
+
+    - name: Create Config and Data Directory
+      file:
+        path: "{{ data_dir }}"
+        owner: prometheus
+        group: prometheus
+        state: directory
+
+    - name: Copy Prometheus Binary Files
+      copy:
+        src: "{{ item }}"
+        dest: /usr/local/bin
+        owner: root
+        mode: "0755"
+        group: root
+        remote_src: yes
+      with_items:
+        - "{{ temp_dir }}/prometheus-2.37.6.linux-amd64/prometheus"
+        - "{{ temp_dir }}/prometheus-2.37.6.linux-amd64/promtool"
+
+    - name: Copy Prometheus Files
+      copy:
+        src: "{{ item }}"
+        dest: "{{ config_dir }}"
+        owner: root
+        group: root
+        remote_src: yes
+      with_items:
+        - "{{ temp_dir }}/prometheus-2.37.6.linux-amd64/consoles"
+        - "{{ temp_dir }}/prometheus-2.37.6.linux-amd64/console_libraries"
+
+    - name: Copy Prometheus Config File
+      copy:
+        src: ../config/prometheus/prometheus.yml
+        dest: "{{ config_dir }}"
+
+    - name: Create Prometheus Service
+      copy:
+        src: ../config/systemd/prometheus.service
+        dest: /etc/systemd/system
+
+    - name: Daemon Reload
+      systemd:
+        name: prometheus
+        state: reloaded
+
+    - name: Start Prometheus Service
+      systemd:
+        name: prometheus
+        state: started
+        enabled: yes
+
+    - name: Clean Temporary Directory
+      file:
+        path: "{{ item }}"
+        state: absent
+        force: yes
+      with_items:
+        - "{{ temp_dir }}/prometheus-2.37.6.linux-amd64"
+        - "{{ temp_dir }}/{{ packages.package_name }}"

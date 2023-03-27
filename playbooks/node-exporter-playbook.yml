@@ -1,0 +1,66 @@
+- hosts: node-exporter
+  become: true
+  vars:
+    packages:
+      download_url: https://github.com/prometheus/node_exporter/releases/download/v1.5.0/node_exporter-1.5.0.linux-amd64.tar.gz
+      package_name: node_exporter-1.5.0.linux-amd64.tar.gz
+    temp_dir: /tmp
+
+  tasks:
+    - name: Download Node Exporter v1.5.0
+      get_url:
+        url: "{{ packages.download_url }}"
+        dest: "{{ temp_dir }}"
+
+    - name: Extract Node Exporter v1.5.0
+      unarchive:
+        src: "{{ temp_dir }}/{{ packages.package_name }}"
+        dest: "{{ temp_dir }}"
+        remote_src: yes
+
+    - name: Create prometheus group
+      group:
+        name: prometheus
+        state: present
+
+    - name: Create prometheus user
+      user:
+        name: prometheus
+        group: prometheus
+        shell: /sbin/nologin
+        system: yes
+        createhome: no
+
+    - name: Copy Node Exporter Binary Files
+      copy:
+        src: "{{ temp_dir }}/node_exporter-1.5.0.linux-amd64/node_exporter"
+        dest: /usr/local/bin
+        owner: root
+        mode: "0755"
+        group: root
+        remote_src: yes
+
+    - name: Create Node Exporter Service
+      copy:
+        src: ../config/systemd/node-exporter.service
+        dest: /etc/systemd/system
+
+    - name: Daemon Reload
+      systemd:
+        name: node-exporter
+        state: reloaded
+
+    - name: Start Node Exporter Service
+      systemd:
+        name: node-exporter
+        state: started
+        enabled: yes
+
+    - name: Clean Temporary Directory
+      file:
+        path: "{{ item }}"
+        state: absent
+        force: yes
+      with_items:
+        - "{{ temp_dir }}/node_exporter-1.5.0.linux-amd64"
+        - "{{ temp_dir }}/{{ packages.package_name }}"

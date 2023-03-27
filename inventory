@@ -1,0 +1,11 @@
+[prometheus]
+10.28.30.11
+
+[node-exporter]
+10.28.30.11
+10.28.30.12
+10.28.30.13
+
+[all:vars]
+ansible_ssh_user=labstack
+ansible_ssh_private_key_file=~/.ssh/labstack

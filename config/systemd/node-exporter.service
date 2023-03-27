@@ -1,0 +1,13 @@
+[Unit]
+Description=Prometheus exporter for machine metrics
+
+[Service]
+Restart=always
+User=prometheus
+ExecStart=/usr/local/bin/node_exporter
+ExecReload=/bin/kill -HUP $MAINPID
+TimeoutStopSec=20s
+SendSIGKILL=no
+
+[Install]
+WantedBy=multi-user.target
